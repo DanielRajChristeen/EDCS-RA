@@ -864,50 +864,85 @@
         let websocket = null;
         let isConnected = false;
 
-        function initializeWebSocket() {
-            logToConsole(`Connection attempt ${reconnectAttempts + 1}...`, 'info');
-            updateConnectionStatus('reconnecting');
-            
-            try {
-                websocket = new WebSocket(WEBSOCKET_URL);
-                
-                websocket.onopen = () => {
-                    isConnected = true;
-                    reconnectAttempts = 0;
-                    updateConnectionStatus('online');
-                    
-                    // Send hello message with stable client ID
-                    websocket.send(JSON.stringify({
-                        type: "hello",
-                        client_id: CLIENT_ID
-                    }));
-                    
-                    logToConsole('Connected to backend', 'success');
-                    lastHeartbeatAck = Date.now();
-                };
-                
-                websocket.onmessage = (event) => {
-                    handleRPiMessage(JSON.parse(event.data));
-                };
-                
-                websocket.onclose = () => {
-                    isConnected = false;
-                    updateConnectionStatus('offline');
-                    logToConsole('Connection closed', 'error');
-                    updateControlOwnership(false, null);
-                    attemptReconnect();
-                };
-                
-                websocket.onerror = () => {
-                    logToConsole('WebSocket error', 'error');
-                };
-            } catch (error) {
-                logToConsole(`Connection failed: ${error.message}`, 'error');
-                attemptReconnect();
-            }
-        }
+		function resetBackendURL(reason) {
+    		console.warn("Resetting backend URL:", reason);
+    		localStorage.removeItem("backend_url");
 
-        function sendToRPi(jsonMessage) {
+    		alert("Backend connection failed.\n\n" + "Cloudflare Tunnel URL may have changed.\n" + "Please paste the new tunnel URL.");
+
+    		location.reload();
+		}
+
+        function initializeWebSocket() {
+    		if (!WEBSOCKET_URL) {
+        		resetBackendURL("No backend URL");
+        		return;
+    		}
+		
+    		logToConsole(`Connection attempt ${reconnectAttempts + 1}...`, 'info');
+    		updateConnectionStatus('reconnecting');
+			
+    		let opened = false;
+		
+    		try {
+        		websocket = new WebSocket(WEBSOCKET_URL);
+		
+        		const connectionTimeout = setTimeout(() => {
+            		if (!opened) {
+                		websocket.close();
+                		resetBackendURL("Connection timeout");
+            		}
+        		}, 4000);
+		
+        		websocket.onopen = () => {
+            		opened = true;
+            		clearTimeout(connectionTimeout);
+		
+        		    isConnected = true;
+            		reconnectAttempts = 0;
+            		updateConnectionStatus('online');
+		
+        		    websocket.send(JSON.stringify({
+                		type: "hello",
+                		client_id: CLIENT_ID
+            		}));
+		
+        		    logToConsole('Connected to backend', 'success');
+            		lastHeartbeatAck = Date.now();
+        		};
+		
+        		websocket.onmessage = (event) => {
+            		handleRPiMessage(JSON.parse(event.data));
+        		};
+		
+        		websocket.onerror = () => {
+            		clearTimeout(connectionTimeout);
+            		if (!opened) {
+                		resetBackendURL("WebSocket error");
+            		}
+        		};
+		
+        		websocket.onclose = () => {
+            		clearTimeout(connectionTimeout);
+		
+        		    if (!opened) {
+                		resetBackendURL("Stale Cloudflare tunnel URL");
+                		return;
+            		}
+		
+        		    isConnected = false;
+            		updateConnectionStatus('offline');
+            		logToConsole('Connection closed', 'error');
+            		updateControlOwnership(false, null);
+            		attemptReconnect();
+        		};
+		
+    			} catch (error) {
+        			resetBackendURL(error.message);
+    			}
+			}
+		
+        	function sendToRPi(jsonMessage) {
             if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) {
                 return;
             }
