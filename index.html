@@ -729,15 +729,14 @@
             <div class="panel">
                 <div class="panel-title">Live Camera Feed</div>
                 <div class="video-container">
-                    <div class="video-label" id="cameraLabel">Camera: Arm-1</div>
-                    <div class="video-placeholder">
-                        <div>📹</div>
-                        <div>Stream not available</div>
-                        <div style="font-size: 12px; margin-top: 8px; color: #3d4872;">
-                            Camera feed would display here
-                        </div>
-                    </div>
-                </div>
+    				<div class="video-label" id="cameraLabel">Camera: Arm-1</div>
+    				<img
+        				id="cameraStream"
+        				src=""
+        				style="width:100%; height:100%; object-fit:cover;"
+        				alt="Live Camera Stream"
+    				/>
+				</div>
             </div>
 
             <!-- Right Panel: Status & Console -->
@@ -851,14 +850,18 @@
 
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', () => {
-            initializeWebSocket();
-            initializeSliders();
-            initializeEventListeners();
-            startHeartbeat();
-            startConnectionMonitor();
-            startAckMonitor();
-            logToConsole('Dashboard initialized', 'info');
-        });
+    		initializeWebSocket();
+    		initializeSliders();
+    		initializeEventListeners();
+    		startHeartbeat();
+    		startConnectionMonitor();
+    		startAckMonitor();
+		
+    		updateCameraStream();   // 👈 ADD THIS
+		
+    		logToConsole('Dashboard initialized', 'info');
+		});
+
 
         // ==================== WEBSOCKET MANAGEMENT ====================
         let websocket = null;
@@ -1106,15 +1109,32 @@
             }
         }
 
+		// ==================== CAMERA STREAM CONFIG ====================
+
+		function getCameraStreamURL(armId) {
+    		if (!BACKEND_BASE_URL) return "";
+		    return `${BACKEND_BASE_URL}/cam/${armId}`;
+		}
+
+		function updateCameraStream() {
+    		const img = document.getElementById("cameraStream");
+    		if (!img) return;
+
+    		// Bust cache to prevent frozen frames
+    		const streamURL = getCameraStreamURL(currentArm);
+    		img.src = streamURL + "?t=" + Date.now();
+		}
+
         // ==================== EVENT LISTENERS ====================
         function initializeEventListeners() {
             document.getElementById('armSelector').addEventListener('change', (e) => {
-                currentArm = e.target.value;
-                document.getElementById('cameraLabel').textContent = 'Camera: ' + e.target.value;
-                logToConsole(`Switched to ${e.target.value}`, 'info');
-                sendCommand();
-            });
-
+    			currentArm = e.target.value;
+    			document.getElementById('cameraLabel').textContent = 'Camera: ' + e.target.value;
+    			updateCameraStream();   // 👈 ADD THIS
+				logToConsole(`Switched to ${e.target.value}`, 'info');
+    			sendCommand();
+			});
+			
             document.getElementById('modeSelector').addEventListener('change', (e) => {
                 currentMode = e.target.value;
                 switchMode(currentMode);
