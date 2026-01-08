@@ -797,14 +797,24 @@
         const RECONNECT_MAX_DELAY_MS = 30000;
         const LATENCY_HISTORY_SIZE = 10;
 
-        // 🔥 AUTO-DERIVED BACKEND URL (NO IP HARDCODE)
-        const isFileProtocol = location.protocol === "file:";
-		const WS_PROTOCOL = location.protocol === "https:" ? "wss://" : "ws://";
+        // ==================== BACKEND URL RESOLUTION ====================
+		// No HTML edits needed after this
 
-		const WS_HOST = location.hostname.includes("github.io") ? "factory-impressed-sensitive-wanted.trycloudflare.com" : (location.host || "localhost:8080");
+		let BACKEND_BASE_URL = localStorage.getItem("backend_url");
 
-		const WEBSOCKET_URL = `${WS_PROTOCOL}${WS_HOST}/ws`;
+		if (!BACKEND_BASE_URL) {
+    		BACKEND_BASE_URL = prompt(
+        		"Enter Cloudflare Tunnel URL\n(example: https://xxxx.trycloudflare.com)"
+    		);
 
+    		if (BACKEND_BASE_URL) {
+        		BACKEND_BASE_URL = BACKEND_BASE_URL.replace(/\/$/, "");
+        		localStorage.setItem("backend_url", BACKEND_BASE_URL);
+	    		}
+		}
+
+		// Auto protocol correction
+		const WEBSOCKET_URL = BACKEND_BASE_URL ? BACKEND_BASE_URL.replace("https://", "wss://") + "/ws" : null;
 		
         // ==================== STATE ====================
         let currentArm = 'arm-1';
