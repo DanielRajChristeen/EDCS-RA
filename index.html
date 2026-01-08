@@ -799,14 +799,12 @@
 
         // 🔥 AUTO-DERIVED BACKEND URL (NO IP HARDCODE)
         const isFileProtocol = location.protocol === "file:";
-	const WS_PROTOCOL = location.protocol === "https:" ? "wss://" : "ws://";
+		const WS_PROTOCOL = location.protocol === "https:" ? "wss://" : "ws://";
 
-	// ✅ Fallback for local file testing
-	const WS_HOST = location.host && location.host.length > 0
-    	? location.host
-    	: "localhost:8080";
+		const WS_HOST = location.hostname.includes("github.io") ? "factory-impressed-sensitive-wanted.trycloudflare.com" : (location.host || "localhost:8080");
 
-	const WEBSOCKET_URL = const WEBSOCKET_URL = "wss://factory-impressed-sensitive-wanted.trycloudflare.com/ws";
+		const WEBSOCKET_URL = `${WS_PROTOCOL}${WS_HOST}/ws`;
+
 		
         // ==================== STATE ====================
         let currentArm = 'arm-1';
