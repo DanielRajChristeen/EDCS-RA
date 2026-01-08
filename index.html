@@ -1118,12 +1118,20 @@
 
 		function updateCameraStream() {
     		const img = document.getElementById("cameraStream");
-    		if (!img) return;
+    		if (!img || !BACKEND_BASE_URL) return;
+		
+    		const streamURL = `${BACKEND_BASE_URL}/cam/${currentArm}`;
 
-    		// Bust cache to prevent frozen frames
-    		const streamURL = getCameraStreamURL(currentArm);
+    		img.onerror = () => {
+        		console.warn("Camera stream dropped, retrying...");
+        		setTimeout(() => {
+            		img.src = streamURL + "?t=" + Date.now();
+        		}, 1500);
+    		};
+	
     		img.src = streamURL + "?t=" + Date.now();
 		}
+
 
         // ==================== EVENT LISTENERS ====================
         function initializeEventListeners() {
