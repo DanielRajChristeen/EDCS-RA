@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robotic Arm Control Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #e0e6ed;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
+            border-bottom: 2px solid #3d4872;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00d4ff;
+            letter-spacing: 1px;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #8b95a8;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        select {
+            background: #1a1f3a;
+            color: #e0e6ed;
+            border: 1px solid #3d4872;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 140px;
+        }
+
+        select:hover {
+            border-color: #00d4ff;
+            background: #222847;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 6px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff88;
+            box-shadow: 0 0 8px #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-dot.offline {
+            background: #ff4444;
+            box-shadow: 0 0 8px #ff4444;
+            animation: none;
+        }
+
+        .status-dot.degraded {
+            background: #ffaa00;
+            box-shadow: 0 0 8px #ffaa00;
+        }
+
+        .status-dot.reconnecting {
+            background: #ffaa00;
+            box-shadow: 0 0 8px #ffaa00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.2; }
+        }
+
+        .control-ownership {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .control-ownership.view-only {
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .control-ownership-icon {
+            font-size: 14px;
+        }
+
+        .clients-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 6px;
+            font-size: 11px;
+            color: #b0b8c8;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 16px;
+            padding: 16px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: linear-gradient(135deg, #1a1f3a 0%, #252b4a 100%);
+            border-radius: 12px;
+            border: 1px solid #3d4872;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+
+        .panel.error-state {
+            border-color: #ff4444;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+        }
+
+        .panel.locked-state {
+            border-color: #ff4444;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.4);
+            opacity: 0.7;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #3d4872;
+        }
+
+        /* Control Panel */
+        .slider-group {
+            margin-bottom: 24px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #b0b8c8;
+        }
+
+        .slider-value {
+            color: #00d4ff;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #2d3561;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.8);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+        }
+
+        input[type="range"]:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #3d4872 0%, #2d3561 100%);
+            color: #e0e6ed;
+            border: 1px solid #4d5882;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #4d5882 0%, #3d4872 100%);
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .emergency-stop {
+            background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+            border-color: #ff0000;
+            grid-column: span 3;
+            font-size: 15px;
+            padding: 16px;
+        }
+
+        .emergency-stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.5);
+        }
+
+        /* Video Panel */
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #3d4872;
+        }
+
+        .video-placeholder {
+            color: #5a6a8a;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .video-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        /* Status Panel */
+        .status-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .status-item-label {
+            font-size: 11px;
+            color: #8b95a8;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .status-item-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e6ed;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-item.healthy {
+            border-left-color: #00ff88;
+        }
+
+        .status-item.warning {
+            border-left-color: #ffaa00;
+        }
+
+        .status-item.error {
+            border-left-color: #ff4444;
+        }
+
+        .latency-trend {
+            font-size: 11px;
+            color: #8b95a8;
+            margin-top: 4px;
+        }
+
+        .latency-spike {
+            color: #ffaa00;
+        }
+
+        .console {
+            background: #000;
+            border: 1px solid #3d4872;
+            border-radius: 8px;
+            padding: 12px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .console-title {
+            font-size: 13px;
+            color: #8b95a8;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-toggle {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .filter-active {
+            background: #00d4ff;
+            color: #0a0e27;
+        }
+
+        .console-entry {
+            margin-bottom: 8px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .console-entry.visible {
+            display: block;
+        }
+
+        .console-timestamp {
+            color: #5a6a8a;
+            margin-right: 8px;
+        }
+
+        .console-message {
+            color: #b0b8c8;
+        }
+
+        .console-message.info {
+            color: #00d4ff;
+        }
+
+        .console-message.success {
+            color: #00ff88;
+        }
+
+        .console-message.warning {
+            color: #ffaa00;
+        }
+
+        .console-message.error {
+            color: #ff4444;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1f3a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3d4872;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4d5882;
+        }
+
+        .mode-info {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #b0b8c8;
+        }
+
+        .error-banner {
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #ff8888;
+            display: none;
+        }
+
+        .error-banner.active {
+            display: block;
+        }
+
+        .system-locked-banner {
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #ff0000;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #ffcccc;
+            text-align: center;
+            font-weight: 700;
+            display: none;
+            animation: alertPulse 2s infinite;
+        }
+
+        .system-locked-banner.active {
+            display: block;
+        }
+
+        @keyframes alertPulse {
+            0%, 100% { background: rgba(255, 0, 0, 0.3); }
+            50% { background: rgba(255, 0, 0, 0.5); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="logo">⚡ ROBO CONTROL</div>
+            
+            <div class="top-controls">
+                <div class="control-group">
+                    <label class="control-label">Select Arm</label>
+                    <select id="armSelector" aria-label="Select robotic arm">
+                        <option value="arm-1">Arm-1</option>
+                        <option value="arm-2">Arm-2</option>
+                        <option value="arm-3">Arm-3</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Control Mode</label>
+                    <select id="modeSelector" aria-label="Select control mode">
+                        <option value="manual">Manual Mode</option>
+                        <option value="ik">Inverse Kinematics</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="status-bar">
+                <div class="control-ownership" id="controlOwnership">
+                    <span class="control-ownership-icon">🔓</span>
+                    <span id="ownershipText">View Only</span>
+                </div>
+                
+                <div class="clients-indicator" id="clientsIndicator">
+                    <span>👥</span>
+                    <span id="clientCount">1</span>
+                </div>
+                
+                <div class="status-indicator">
+                    <div class="status-dot offline" id="connectionStatus"></div>
+                    <span id="connectionText">Connecting...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Control Panel -->
+            <div class="panel" id="controlPanel">
+                <div class="panel-title">Control Panel</div>
+                
+                <div class="system-locked-banner" id="systemLockedBanner">
+                    ⚠️ SYSTEM LOCKED ⚠️<br>
+                    <span style="font-size: 11px; font-weight: 400;">Awaiting backend acknowledgement to resume</span>
+                </div>
+                
+                <div class="error-banner" id="errorBanner"></div>
+                
+                <div class="mode-info" id="modeInfo">
+                    Manual Mode: Direct joint control
+                </div>
+
+                <!-- Manual Mode Controls -->
+                <div id="manualControls">
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Base</span>
+                            <span class="slider-value" id="baseValue">90°</span>
+                        </div>
+                        <input type="range" id="base" min="0" max="180" value="90" 
+                               aria-label="Base joint angle" data-mode="manual">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Shoulder</span>
+                            <span class="slider-value" id="shoulderValue">90°</span>
+                        </div>
+                        <input type="range" id="shoulder" min="0" max="180" value="90"
+                               aria-label="Shoulder joint angle" data-mode="manual">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Elbow</span>
+                            <span class="slider-value" id="elbowValue">90°</span>
+                        </div>
+                        <input type="range" id="elbow" min="0" max="180" value="90"
+                               aria-label="Elbow joint angle" data-mode="manual">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Wrist</span>
+                            <span class="slider-value" id="wristValue">90°</span>
+                        </div>
+                        <input type="range" id="wrist" min="0" max="180" value="90"
+                               aria-label="Wrist joint angle" data-mode="manual">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Gripper</span>
+                            <span class="slider-value" id="gripperValue">50%</span>
+                        </div>
+                        <input type="range" id="gripper" min="0" max="100" value="50"
+                               aria-label="Gripper position" data-mode="manual">
+                    </div>
+                </div>
+
+                <!-- IK Mode Controls -->
+                <div id="ikControls" style="display: none;">
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>X Position</span>
+                            <span class="slider-value" id="xValue">0mm</span>
+                        </div>
+                        <input type="range" id="x" min="-200" max="200" value="0"
+                               aria-label="X position" data-mode="ik">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Y Position</span>
+                            <span class="slider-value" id="yValue">0mm</span>
+                        </div>
+                        <input type="range" id="y" min="-200" max="200" value="0"
+                               aria-label="Y position" data-mode="ik">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Z Position</span>
+                            <span class="slider-value" id="zValue">200mm</span>
+                        </div>
+                        <input type="range" id="z" min="0" max="400" value="200"
+                               aria-label="Z position" data-mode="ik">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Roll</span>
+                            <span class="slider-value" id="rollValue">0°</span>
+                        </div>
+                        <input type="range" id="roll" min="-180" max="180" value="0"
+                               aria-label="Roll orientation" data-mode="ik">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Pitch</span>
+                            <span class="slider-value" id="pitchValue">0°</span>
+                        </div>
+                        <input type="range" id="pitch" min="-90" max="90" value="0"
+                               aria-label="Pitch orientation" data-mode="ik">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Yaw</span>
+                            <span class="slider-value" id="yawValue">0°</span>
+                        </div>
+                        <input type="range" id="yaw" min="-180" max="180" value="0"
+                               aria-label="Yaw orientation" data-mode="ik">
+                    </div>
+                </div>
+
+                <!-- Speed Control (Both Modes) -->
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Speed</span>
+                        <span class="slider-value" id="speedValue">50%</span>
+                    </div>
+                    <input type="range" id="speed" min="0" max="100" value="50"
+                           aria-label="Movement speed" data-mode="both">
+                </div>
+
+                <!-- Preset Buttons -->
+                <div class="preset-buttons">
+                    <button onclick="sendPreset('home')" id="homeBtn">Home</button>
+                    <button onclick="sendPreset('pick')" id="pickBtn">Pick</button>
+                    <button onclick="sendPreset('place')" id="placeBtn">Place</button>
+                    <button class="emergency-stop" onclick="emergencyStop()" id="stopBtn">🛑 EMERGENCY STOP</button>
+                </div>
+            </div>
+
+            <!-- Center Panel: Video Stream -->
+            <div class="panel">
+                <div class="panel-title">Live Camera Feed</div>
+                <div class="video-container">
+                    <div class="video-label" id="cameraLabel">Camera: Arm-1</div>
+                    <div class="video-placeholder">
+                        <div>📹</div>
+                        <div>Stream not available</div>
+                        <div style="font-size: 12px; margin-top: 8px; color: #3d4872;">
+                            Camera feed would display here
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Status & Console -->
+            <div class="panel">
+                <div class="panel-title">System Status</div>
+                
+                <div class="status-grid">
+                    <div class="status-item" id="rpiStatusItem">
+                        <div class="status-item-label">Raspberry Pi</div>
+                        <div class="status-item-value" id="rpiStatus">Offline</div>
+                    </div>
+                    
+                    <div class="status-item healthy" id="networkStatusItem">
+                        <div class="status-item-label">Network Quality</div>
+                        <div class="status-item-value" id="networkQuality">Unknown</div>
+                    </div>
+                    
+                    <div class="status-item" id="latencyStatusItem">
+                        <div class="status-item-label">Latency</div>
+                        <div class="status-item-value" id="latency">---</div>
+                        <div class="latency-trend" id="latencyTrend"></div>
+                    </div>
+                </div>
+
+                <div class="console-header">
+                    <div class="console-title">System Console</div>
+                    <div class="console-controls">
+                        <button class="console-toggle" id="filterInfo" onclick="toggleFilter('info')">Info</button>
+                        <button class="console-toggle filter-active" id="filterWarning" onclick="toggleFilter('warning')">Warn</button>
+                        <button class="console-toggle filter-active" id="filterError" onclick="toggleFilter('error')">Error</button>
+                        <button class="console-toggle" onclick="toggleAutoScroll()">
+                            Auto: <span id="autoScrollStatus">ON</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="console" id="console"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        
+        // Stable client identity (persists across reloads)
+        let CLIENT_ID = localStorage.getItem("client_id");
+        if (!CLIENT_ID) {
+            CLIENT_ID = "web-ui-" + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem("client_id", CLIENT_ID);
+        }
+
+        const COMMAND_THROTTLE_MS = 75;
+        const HEARTBEAT_INTERVAL_MS = 5000;
+        const HEARTBEAT_TIMEOUT_MS = 10000;
+        const ACK_TIMEOUT_MS = 2000;
+        const RECONNECT_BASE_DELAY_MS = 1000;
+        const RECONNECT_MAX_DELAY_MS = 30000;
+        const LATENCY_HISTORY_SIZE = 10;
+
+        // 🔥 AUTO-DERIVED BACKEND URL (NO IP HARDCODE)
+        const isFileProtocol = location.protocol === "file:";
+	const WS_PROTOCOL = location.protocol === "https:" ? "wss://" : "ws://";
+
+	// ✅ Fallback for local file testing
+	const WS_HOST = location.host && location.host.length > 0
+    	? location.host
+    	: "localhost:8080";
+
+	const WEBSOCKET_URL = WS_PROTOCOL + WS_HOST + "/ws";
+
+
+        // ==================== STATE ====================
+        let currentArm = 'arm-1';
+        let currentMode = 'manual';
+        let autoScroll = true;
+        let commandSequenceId = 0;
+        let lastAckedSequenceId = 0;
+        let lastHeartbeatAck = Date.now();
+        let commandsEnabled = false;
+        let systemLocked = false;
+        let hasControl = false;
+        let currentOwner = null;
+        let reconnectAttempts = 0;
+        let reconnectTimer = null;
+        let connectedClients = 1;
+
+        // Throttle timer
+        let commandThrottleTimer = null;
+        let pendingCommand = false;
+
+        // ACK timeout tracking
+        let pendingAcks = new Map();
+
+        // Latency tracking
+        let latencyHistory = [];
+
+        // Console filtering
+        let consoleFilters = {
+            info: false,
+            success: true,
+            warning: true,
+            error: true
+        };
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeWebSocket();
+            initializeSliders();
+            initializeEventListeners();
+            startHeartbeat();
+            startConnectionMonitor();
+            startAckMonitor();
+            logToConsole('Dashboard initialized', 'info');
+        });
+
+        // ==================== WEBSOCKET MANAGEMENT ====================
+        let websocket = null;
+        let isConnected = false;
+
+        function initializeWebSocket() {
+            logToConsole(`Connection attempt ${reconnectAttempts + 1}...`, 'info');
+            updateConnectionStatus('reconnecting');
+            
+            try {
+                websocket = new WebSocket(WEBSOCKET_URL);
+                
+                websocket.onopen = () => {
+                    isConnected = true;
+                    reconnectAttempts = 0;
+                    updateConnectionStatus('online');
+                    
+                    // Send hello message with stable client ID
+                    websocket.send(JSON.stringify({
+                        type: "hello",
+                        client_id: CLIENT_ID
+                    }));
+                    
+                    logToConsole('Connected to backend', 'success');
+                    lastHeartbeatAck = Date.now();
+                };
+                
+                websocket.onmessage = (event) => {
+                    handleRPiMessage(JSON.parse(event.data));
+                };
+                
+                websocket.onclose = () => {
+                    isConnected = false;
+                    updateConnectionStatus('offline');
+                    logToConsole('Connection closed', 'error');
+                    updateControlOwnership(false, null);
+                    attemptReconnect();
+                };
+                
+                websocket.onerror = () => {
+                    logToConsole('WebSocket error', 'error');
+                };
+            } catch (error) {
+                logToConsole(`Connection failed: ${error.message}`, 'error');
+                attemptReconnect();
+            }
+        }
+
+        function sendToRPi(jsonMessage) {
+            if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            websocket.send(JSON.stringify(jsonMessage));
+            console.log('📤 [COMMAND]', jsonMessage.type, 'seq:', jsonMessage.sequence_id);
+        }
+
+        function attemptReconnect() {
+            if (reconnectTimer) return;
+            
+            reconnectAttempts++;
+            const delay = Math.min(
+                RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempts - 1),
+                RECONNECT_MAX_DELAY_MS
+            );
+            
+            logToConsole(`Reconnecting in ${Math.round(delay/1000)}s (attempt ${reconnectAttempts})`, 'warning');
+            
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                initializeWebSocket();
+            }, delay);
+        }
+
+        function simulateConnection(connected) {
+            // This function is now deprecated - using real WebSocket
+            // Keeping for backward compatibility with simulation code
+            isConnected = connected;
+            if (connected) {
+                updateConnectionStatus('online');
+                logToConsole('Connected to backend', 'success');
+                lastHeartbeatAck = Date.now();
+            } else {
+                updateConnectionStatus('offline');
+                logToConsole('Connection lost', 'error');
+                updateControlOwnership(false, null);
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            const rpiStatusItem = document.getElementById('rpiStatusItem');
+            const rpiStatus = document.getElementById('rpiStatus');
+
+            statusDot.className = 'status-dot';
+            rpiStatusItem.className = 'status-item';
+
+            switch(status) {
+                case 'online':
+                    statusDot.classList.add('online');
+                    statusText.textContent = 'Connected';
+                    rpiStatusItem.classList.add('healthy');
+                    rpiStatus.textContent = 'Online';
+                    if (!systemLocked) {
+                        commandsEnabled = true;
+                    }
+                    break;
+                case 'offline':
+                    statusDot.classList.add('offline');
+                    statusText.textContent = 'Offline';
+                    rpiStatusItem.classList.add('error');
+                    rpiStatus.textContent = 'Offline';
+                    commandsEnabled = false;
+                    disableControls(true);
+                    break;
+                case 'degraded':
+                    statusDot.classList.add('degraded');
+                    statusText.textContent = 'Degraded';
+                    rpiStatusItem.classList.add('warning');
+                    rpiStatus.textContent = 'Degraded';
+                    break;
+                case 'reconnecting':
+                    statusDot.classList.add('reconnecting');
+                    statusText.textContent = reconnectAttempts > 0 ? 
+                        `Reconnecting (${reconnectAttempts})` : 'Connecting...';
+                    rpiStatusItem.classList.add('warning');
+                    rpiStatus.textContent = 'Reconnecting';
+                    break;
+            }
+        }
+
+        function startConnectionMonitor() {
+            setInterval(() => {
+                const timeSinceLastAck = Date.now() - lastHeartbeatAck;
+                
+                if (timeSinceLastAck > HEARTBEAT_TIMEOUT_MS && isConnected) {
+                    updateConnectionStatus('degraded');
+                    logToConsole('Connection degraded - no heartbeat response', 'warning');
+                }
+            }, 3000);
+        }
+
+        // ==================== CONTROL OWNERSHIP ====================
+        function updateControlOwnership(hasControlStatus, owner) {
+            hasControl = hasControlStatus;
+            currentOwner = owner;
+            
+            const ownershipEl = document.getElementById('controlOwnership');
+            const ownershipText = document.getElementById('ownershipText');
+            
+            if (hasControlStatus) {
+                ownershipEl.classList.remove('view-only');
+                ownershipEl.querySelector('.control-ownership-icon').textContent = '🔐';
+                ownershipText.textContent = 'Control Active';
+                if (!systemLocked) {
+                    commandsEnabled = true;
+                    disableControls(false);
+                }
+            } else {
+                ownershipEl.classList.add('view-only');
+                ownershipEl.querySelector('.control-ownership-icon').textContent = '👁️';
+                if (owner && owner !== CLIENT_ID) {
+                    ownershipText.textContent = `Controlled by: ${owner.substr(0, 8)}`;
+                } else {
+                    ownershipText.textContent = 'View Only';
+                }
+                commandsEnabled = false;
+                disableControls(true);
+            }
+        }
+
+        function updateClientCount(count) {
+            document.getElementById('clientCount').textContent = count;
+            if (count > 1) {
+                logToConsole(`${count} clients connected - commands may be overridden`, 'info');
+            }
+        }
+
+        // ==================== SLIDER INITIALIZATION ====================
+        function initializeSliders() {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+                updateSliderValue(slider);
+                
+                slider.addEventListener('input', (e) => {
+                    updateSliderValue(e.target);
+                    
+                    const sliderMode = e.target.getAttribute('data-mode');
+                    if (sliderMode === currentMode || sliderMode === 'both') {
+                        throttledSendCommand();
+                    }
+                });
+            });
+        }
+
+        function updateSliderValue(slider) {
+            const id = slider.id;
+            const value = slider.value;
+            const valueElement = document.getElementById(id + 'Value');
+            
+            if (valueElement) {
+                if (id === 'speed' || id === 'gripper') {
+                    valueElement.textContent = value + '%';
+                } else if (['x', 'y', 'z'].includes(id)) {
+                    valueElement.textContent = value + 'mm';
+                } else {
+                    valueElement.textContent = value + '°';
+                }
+            }
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        function initializeEventListeners() {
+            document.getElementById('armSelector').addEventListener('change', (e) => {
+                currentArm = e.target.value;
+                document.getElementById('cameraLabel').textContent = 'Camera: ' + e.target.value;
+                logToConsole(`Switched to ${e.target.value}`, 'info');
+                sendCommand();
+            });
+
+            document.getElementById('modeSelector').addEventListener('change', (e) => {
+                currentMode = e.target.value;
+                switchMode(currentMode);
+                logToConsole(`Mode changed to ${e.target.value}`, 'info');
+            });
+        }
+
+        // ==================== MODE SWITCHING ====================
+        function switchMode(mode) {
+            const manualControls = document.getElementById('manualControls');
+            const ikControls = document.getElementById('ikControls');
+            const modeInfo = document.getElementById('modeInfo');
+
+            if (mode === 'manual') {
+                manualControls.style.display = 'block';
+                ikControls.style.display = 'none';
+                modeInfo.textContent = 'Manual Mode: Direct joint control';
+            } else {
+                manualControls.style.display = 'none';
+                ikControls.style.display = 'block';
+                modeInfo.textContent = 'IK Mode: Cartesian position control';
+            }
+
+            clearErrorState();
+            sendCommand();
+        }
+
+        // ==================== COMMAND THROTTLING ====================
+        function throttledSendCommand() {
+            pendingCommand = true;
+            
+            if (!commandThrottleTimer) {
+                sendCommand();
+                
+                commandThrottleTimer = setTimeout(() => {
+                    if (pendingCommand) {
+                        sendCommand();
+                    }
+                    commandThrottleTimer = null;
+                    pendingCommand = false;
+                }, COMMAND_THROTTLE_MS);
+            }
+        }
+
+        // ==================== COMMAND CONSTRUCTION & SENDING ====================
+        function sendCommand() {
+            if (!commandsEnabled || !isConnected || systemLocked || !hasControl) {
+                return;
+            }
+
+            const timestamp = Date.now();
+            const speed = parseFloat(document.getElementById('speed').value) / 100;
+            commandSequenceId++;
+
+            let message;
+
+            if (currentMode === 'manual') {
+                message = {
+                    type: 'command',
+                    timestamp: timestamp,
+                    sequence_id: commandSequenceId,
+                    client_id: CLIENT_ID,
+                    arm_id: currentArm,
+                    mode: 'manual',
+                    payload: {
+                        joints: {
+                            base: parseInt(document.getElementById('base').value),
+                            shoulder: parseInt(document.getElementById('shoulder').value),
+                            elbow: parseInt(document.getElementById('elbow').value),
+                            wrist: parseInt(document.getElementById('wrist').value),
+                            gripper: parseInt(document.getElementById('gripper').value)
+                        },
+                        speed: speed
+                    }
+                };
+            } else {
+                message = {
+                    type: 'command',
+                    timestamp: timestamp,
+                    sequence_id: commandSequenceId,
+                    client_id: CLIENT_ID,
+                    arm_id: currentArm,
+                    mode: 'ik',
+                    payload: {
+                        position: {
+                            x: parseInt(document.getElementById('x').value),
+                            y: parseInt(document.getElementById('y').value),
+                            z: parseInt(document.getElementById('z').value)
+                        },
+                        orientation: {
+                            roll: parseInt(document.getElementById('roll').value),
+                            pitch: parseInt(document.getElementById('pitch').value),
+                            yaw: parseInt(document.getElementById('yaw').value)
+                        },
+                        speed: speed
+                    }
+                };
+            }
+
+            sendToRPi(message);
+            trackPendingAck(commandSequenceId, timestamp);
+        }
+
+        // ==================== PRESET COMMANDS ====================
+        function sendPreset(presetName) {
+            if (!commandsEnabled || !isConnected || systemLocked || !hasControl) {
+                logToConsole('Cannot send preset: not in control', 'warning');
+                return;
+            }
+
+            commandSequenceId++;
+            const timestamp = Date.now();
+            const message = {
+                type: 'preset',
+                timestamp: timestamp,
+                sequence_id: commandSequenceId,
+                client_id: CLIENT_ID,
+                arm_id: currentArm,
+                payload: {
+                    name: presetName
+                }
+            };
+
+            sendToRPi(message);
+            trackPendingAck(commandSequenceId, timestamp);
+            logToConsole(`Preset "${presetName}" sent to ${currentArm}`, 'info');
+        }
+
+        // ==================== EMERGENCY STOP ====================
+        function emergencyStop() {
+            const message = {
+                type: 'emergency_stop',
+                timestamp: Date.now(),
+                sequence_id: ++commandSequenceId,
+                client_id: CLIENT_ID,
+                arm_id: currentArm
+            };
+
+            sendToRPi(message);
+            logToConsole('⚠️ EMERGENCY STOP INITIATED', 'error');
+            
+            // Immediate local lockdown
+            systemLocked = true;
+            commandsEnabled = false;
+            disableControls(true);
+            showSystemLocked();
+            document.getElementById('controlPanel').classList.add('locked-state');
+        }
+
+        // ==================== SEND TO RPI ====================
+        // Note: sendToRPi is now defined in WebSocket section above
+        // Keeping this comment for code organization
+
+        // ==================== ACK TRACKING ====================
+        function trackPendingAck(seqId, timestamp) {
+            pendingAcks.set(seqId, timestamp);
+        }
+
+        function startAckMonitor() {
+            setInterval(() => {
+                const now = Date.now();
+                for (const [seqId, timestamp] of pendingAcks.entries()) {
+                    if (now - timestamp > ACK_TIMEOUT_MS) {
+                        logToConsole(`ACK timeout for command ${seqId}`, 'warning');
+                        pendingAcks.delete(seqId);
+                    }
+                }
+            }, 1000);
+        }
+
+        // ==================== HEARTBEAT (LOW PRIORITY) ====================
+        function startHeartbeat() {
+            setInterval(() => {
+                if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) return;
+
+                const heartbeat = {
+                    type: 'heartbeat',
+                    timestamp: Date.now(),
+                    client_id: CLIENT_ID
+                };
+                
+                sendHeartbeat(heartbeat);
+            }, HEARTBEAT_INTERVAL_MS);
+        }
+
+        function sendHeartbeat(heartbeatMessage) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
+            
+            websocket.send(JSON.stringify(heartbeatMessage));
+            console.log('💓 [HEARTBEAT]', heartbeatMessage.timestamp);
+        }
+
+        // ==================== HANDLE RPI RESPONSES ====================
+        function handleRPiMessage(message) {
+            switch(message.type) {
+                case 'ack':
+                    handleAck(message);
+                    break;
+                case 'error':
+                    handleError(message);
+                    break;
+                case 'heartbeat_ack':
+                    lastHeartbeatAck = Date.now();
+                    if (isConnected) {
+                        updateConnectionStatus('online');
+                    }
+                    break;
+                case 'control_granted':
+                    updateControlOwnership(true, CLIENT_ID);
+                    logToConsole('Control granted', 'success');
+                    break;
+                case 'control_revoked':
+                    updateControlOwnership(false, message.new_owner);
+                    logToConsole('Control revoked', 'warning');
+                    break;
+                case 'system_unlocked':
+                    handleSystemUnlock();
+                    break;
+                case 'clients_update':
+                    updateClientCount(message.count);
+                    break;
+                default:
+                    console.log('Unknown message type:', message);
+            }
+        }
+
+        function handleAck(message) {
+            lastHeartbeatAck = Date.now();
+            
+            // Validate sequence ID
+            if (message.sequence_id < lastAckedSequenceId) {
+                console.warn('Ignoring stale ACK:', message.sequence_id);
+                return;
+            }
+            
+            lastAckedSequenceId = message.sequence_id;
+            pendingAcks.delete(message.sequence_id);
+            
+            if (message.latency_ms) {
+                updateLatency(message.latency_ms);
+            }
+        }
+
+        function updateLatency(latencyMs) {
+            latencyHistory.push(latencyMs);
+            if (latencyHistory.length > LATENCY_HISTORY_SIZE) {
+                latencyHistory.shift();
+            }
+            
+            const avgLatency = Math.round(
+                latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length
+            );
+            
+            const latencyEl = document.getElementById('latency');
+            const latencyItem = document.getElementById('latencyStatusItem');
+            const latencyTrend = document.getElementById('latencyTrend');
+            
+            latencyEl.textContent = latencyMs + 'ms';
+            
+            // Check for spikes
+            const isSpike = latencyMs > avgLatency * 2;
+            if (isSpike) {
+                latencyTrend.innerHTML = '<span class="latency-spike">⚠️ Spike detected</span>';
+            } else {
+                latencyTrend.textContent = `Avg: ${avgLatency}ms`;
+            }
+            
+            latencyItem.className = 'status-item';
+            if (avgLatency < 50) {
+                latencyItem.classList.add('healthy');
+            } else if (avgLatency < 100) {
+                latencyItem.classList.add('warning');
+                if (avgLatency > 80) {
+                    logToConsole('Sustained high latency detected', 'warning');
+                }
+            } else {
+                latencyItem.classList.add('error');
+                logToConsole('Critical latency degradation', 'error');
+            }
+        }
+
+        function handleError(message) {
+            const errorMsg = `Error [${message.code}]: ${message.message}`;
+            
+            logToConsole(errorMsg, 'error');
+            showErrorBanner(errorMsg);
+            
+            // Critical errors lock the system
+            const criticalErrors = ['IK_OUT_OF_RANGE', 'EMERGENCY_STOP', 'COLLISION_DETECTED', 'MOTOR_FAULT'];
+            if (criticalErrors.includes(message.code)) {
+                systemLocked = true;
+                commandsEnabled = false;
+                disableControls(true);
+                showSystemLocked();
+                document.getElementById('controlPanel').classList.add('locked-state');
+                logToConsole('System locked - awaiting backend acknowledgement', 'error');
+            }
+        }
+
+        function showErrorBanner(message) {
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = message;
+            banner.classList.add('active');
+            
+            setTimeout(() => {
+                banner.classList.remove('active');
+            }, 10000);
+        }
+
+        function showSystemLocked() {
+            document.getElementById('systemLockedBanner').classList.add('active');
+        }
+
+        function handleSystemUnlock() {
+            systemLocked = false;
+            document.getElementById('systemLockedBanner').classList.remove('active');
+            document.getElementById('controlPanel').classList.remove('locked-state');
+            
+            if (isConnected && hasControl) {
+                commandsEnabled = true;
+                disableControls(false);
+            }
+            
+            clearErrorState();
+            logToConsole('System unlocked by backend', 'success');
+        }
+
+        function clearErrorState() {
+            const banner = document.getElementById('errorBanner');
+            banner.classList.remove('active');
+            if (!systemLocked) {
+                document.getElementById('controlPanel').classList.remove('error-state');
+                if (hasControl && isConnected) {
+                    disableControls(false);
+                }
+            }
+        }
+
+        function disableControls(disabled) {
+            const sliders = document.querySelectorAll('input[type="range"]');
+            const buttons = document.querySelectorAll('button');
+            
+            sliders.forEach(slider => slider.disabled = disabled);
+            buttons.forEach(btn => {
+                if (!btn.classList.contains('console-toggle') && btn.id !== 'stopBtn') {
+                    btn.disabled = disabled;
+                }
+            });
+        }
+
+        // ==================== CONSOLE FILTERING ====================
+        function toggleFilter(type) {
+            consoleFilters[type] = !consoleFilters[type];
+            const filterBtn = document.getElementById('filter' + type.charAt(0).toUpperCase() + type.slice(1));
+            
+            if (consoleFilters[type]) {
+                filterBtn.classList.add('filter-active');
+            } else {
+                filterBtn.classList.remove('filter-active');
+            }
+            
+            updateConsoleVisibility();
+        }
+
+        function updateConsoleVisibility() {
+            const entries = document.querySelectorAll('.console-entry');
+            entries.forEach(entry => {
+                const message = entry.querySelector('.console-message');
+                const type = Array.from(message.classList).find(c => 
+                    ['info', 'success', 'warning', 'error'].includes(c)
+                ) || 'info';
+                
+                if (consoleFilters[type]) {
+                    entry.classList.add('visible');
+                } else {
+                    entry.classList.remove('visible');
+                }
+            });
+        }
+
+        // ==================== CONSOLE LOGGING ====================
+        function logToConsole(message, type = 'info') {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'console-entry';
+            if (consoleFilters[type]) {
+                entry.classList.add('visible');
+            }
+            
+            entry.innerHTML = `
+                <span class="console-timestamp">[${timestamp}]</span>
+                <span class="console-message ${type}">${message}</span>
+            `;
+            
+            consoleEl.appendChild(entry);
+            
+            // Limit console entries
+            while (consoleEl.children.length > 100) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
+            
+            if (autoScroll) {
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+            }
+        }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            document.getElementById('autoScrollStatus').textContent = autoScroll ? 'ON' : 'OFF';
+        }
+
+        // ==================== SIMULATION HELPERS ====================
+        function simulateAck(sequenceId, commandType) {
+            const latencyMs = Math.floor(Math.random() * 30) + 20;
+            
+            handleRPiMessage({
+                type: 'ack',
+                arm_id: currentArm,
+                sequence_id: sequenceId,
+                status: 'ok',
+                latency_ms: latencyMs
+            });
+            
+            // Simulate occasional errors (3% chance)
+            if (Math.random() > 0.97 && commandType !== 'emergency_stop') {
+                setTimeout(() => {
+                    const errorCodes = [
+                        { code: 'HIGH_TEMP', message: 'Motor temperature above threshold', critical: false },
+                        { code: 'LOW_VOLTAGE', message: 'Power supply voltage low', critical: false },
+                        { code: 'IK_OUT_OF_RANGE', message: 'Target position unreachable', critical: true },
+                        { code: 'COLLISION_DETECTED', message: 'Obstacle detected in path', critical: true }
+                    ];
+                    const error = errorCodes[Math.floor(Math.random() * errorCodes.length)];
+                    handleRPiMessage({
+                        type: 'error',
+                        arm_id: currentArm,
+                        ...error
+                    });
+                }, 500);
+            }
+            
+            // Simulate system unlock after emergency stop
+            if (commandType === 'emergency_stop') {
+                setTimeout(() => {
+                    handleRPiMessage({ type: 'system_unlocked' });
+                }, 8000);
+            }
+        }
+
+        // ==================== PERIODIC STATUS UPDATES ====================
+        setInterval(() => {
+            if (isConnected) {
+                const networkConditions = [
+                    { text: 'Excellent', className: 'healthy' },
+                    { text: 'Good', className: 'healthy' },
+                    { text: 'Fair', className: 'warning' }
+                ];
+                const condition = networkConditions[Math.floor(Math.random() * networkConditions.length)];
+                
+                const networkQuality = document.getElementById('networkQuality');
+                const networkItem = document.getElementById('networkStatusItem');
+                
+                networkQuality.textContent = condition.text;
+                networkItem.className = 'status-item ' + condition.className;
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
