@@ -796,24 +796,29 @@
         const LATENCY_HISTORY_SIZE = 10;
 
         // ==================== BACKEND URL RESOLUTION ====================
-		// No HTML edits needed after this
 
-		let BACKEND_BASE_URL = localStorage.getItem("backend_url");
-
+		// One-time Cloudflare URL entry per session
+		let BACKEND_BASE_URL = sessionStorage.getItem("backend_url");
+		
 		if (!BACKEND_BASE_URL) {
     		BACKEND_BASE_URL = prompt(
         		"Enter Cloudflare Tunnel URL\n(example: https://xxxx.trycloudflare.com)"
     		);
+		
+    		if (!BACKEND_BASE_URL) {
+        		alert("Backend URL is required");
+        		throw new Error("No backend URL");
+    		}
 
-    		if (BACKEND_BASE_URL) {
-        		BACKEND_BASE_URL = BACKEND_BASE_URL.replace(/\/$/, "");
-        		localStorage.setItem("backend_url", BACKEND_BASE_URL);
-	    		}
+    		BACKEND_BASE_URL = BACKEND_BASE_URL.replace(/\/$/, "");
+    		sessionStorage.setItem("backend_url", BACKEND_BASE_URL);
 		}
 
-		// Auto protocol correction
-		const WEBSOCKET_URL = BACKEND_BASE_URL ? BACKEND_BASE_URL.replace("https://", "wss://") + "/ws" : null;
-		
+		// WebSocket protocol auto-switch
+		const WS_PROTOCOL = BACKEND_BASE_URL.startsWith("https") ? "wss://" : "ws://";
+		const WEBSOCKET_URL =
+    		BACKEND_BASE_URL.replace(/^https?:\/\//, WS_PROTOCOL) + "/ws";
+				
         // ==================== STATE ====================
         let currentArm = 'arm-1';
         let currentMode = 'manual';
@@ -866,18 +871,9 @@
         let websocket = null;
         let isConnected = false;
 
-		function resetBackendURL(reason) {
-    		console.warn("Resetting backend URL:", reason);
-    		localStorage.removeItem("backend_url");
-
-    		alert("Backend connection failed.\n\n" + "Cloudflare Tunnel URL may have changed.\n" + "Please paste the new tunnel URL.");
-
-    		location.reload();
-		}
-
         function initializeWebSocket() {
     		if (!WEBSOCKET_URL) {
-        		resetBackendURL("No backend URL");
+        		logToConsole("No WebSocket URL configured", "error");
         		return;
     		}
 		
@@ -892,7 +888,8 @@
         		const connectionTimeout = setTimeout(() => {
             		if (!opened) {
                 		websocket.close();
-                		resetBackendURL("Connection timeout");
+                		logToConsole("WebSocket connection timeout", "warning");
+        				attemptReconnect();
             		}
         		}, 4000);
 		
@@ -918,29 +915,19 @@
         		};
 		
         		websocket.onerror = () => {
-            		clearTimeout(connectionTimeout);
-            		if (!opened) {
-                		resetBackendURL("WebSocket error");
-            		}
-        		};
-		
-        		websocket.onclose = () => {
-            		clearTimeout(connectionTimeout);
-		
-        		    if (!opened) {
-                		resetBackendURL("Stale Cloudflare tunnel URL");
-                		return;
-            		}
-		
-        		    isConnected = false;
-            		updateConnectionStatus('offline');
-            		logToConsole('Connection closed', 'error');
-            		updateControlOwnership(false, null);
-            		attemptReconnect();
-        		};
+    				logToConsole("WebSocket transport error", "warning");
+				};
+
+				websocket.onclose = () => {
+    				isConnected = false;
+    				updateConnectionStatus('offline');
+    				updateControlOwnership(false, null);
+    				attemptReconnect();
+				};
 		
     			} catch (error) {
-        			resetBackendURL(error.message);
+        			logToConsole(`WebSocket init error: ${error.message}`, "error");
+    				attemptReconnect();
     			}
 			}
 		
@@ -1001,7 +988,7 @@
                     rpiStatusItem.classList.add('healthy');
                     rpiStatus.textContent = 'Online';
                     if (!systemLocked) {
-                        commandsEnabled = true;
+                        commandsEnabled = hasControl && !systemLocked;
                     }
                     break;
                 case 'offline':
@@ -1052,8 +1039,8 @@
                 ownershipEl.querySelector('.control-ownership-icon').textContent = '🔐';
                 ownershipText.textContent = 'Control Active';
                 if (!systemLocked) {
-                    commandsEnabled = true;
-                    disableControls(false);
+                    commandsEnabled = hasControl && isConnected && !systemLocked;
+					disableControls(!commandsEnabled);
                 }
             } else {
                 ownershipEl.classList.add('view-only');
