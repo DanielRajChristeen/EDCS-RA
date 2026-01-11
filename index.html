@@ -613,11 +613,11 @@
 
                     <div class="slider-group">
                         <div class="slider-label">
-                            <span>Shoulder</span>
-                            <span class="slider-value" id="shoulderValue">90°</span>
+                            <span>Arm</span>
+                            <span class="slider-value" id="armValue">90°</span>
                         </div>
-                        <input type="range" id="shoulder" min="0" max="180" value="90"
-                               aria-label="Shoulder joint angle" data-mode="manual">
+                        <input type="range" id="arm" min="0" max="180" value="90"
+                               aria-label="Arm joint angle" data-mode="manual">
                     </div>
 
                     <div class="slider-group">
@@ -631,17 +631,8 @@
 
                     <div class="slider-group">
                         <div class="slider-label">
-                            <span>Wrist</span>
-                            <span class="slider-value" id="wristValue">90°</span>
-                        </div>
-                        <input type="range" id="wrist" min="0" max="180" value="90"
-                               aria-label="Wrist joint angle" data-mode="manual">
-                    </div>
-
-                    <div class="slider-group">
-                        <div class="slider-label">
                             <span>Gripper</span>
-                            <span class="slider-value" id="gripperValue">50%</span>
+                            <span class="slider-value" id="gripperValue">30°</span>
                         </div>
                         <input type="range" id="gripper" min="0" max="100" value="50"
                                aria-label="Gripper position" data-mode="manual">
@@ -779,6 +770,12 @@
 
     <script>
         // ==================== CONFIGURATION ====================
+
+		const armState = {
+  		"arm-1": { base:90, arm:90, elbow:90, gripper:30, speed:50 },
+  		"arm-2": { base:90, arm:90, elbow:90, gripper:30, speed:50 }
+		};
+
         
         // Stable client identity (persists across reloads)
         let CLIENT_ID = localStorage.getItem("client_id");
@@ -1027,7 +1024,7 @@
         }
 
         // ==================== CONTROL OWNERSHIP ====================
-        function updateControlOwnership(hasControlStatus, owner) {
+        updateControlOwnership(armId, hasControl, owner) {
             hasControl = hasControlStatus;
             currentOwner = owner;
             
@@ -1126,7 +1123,7 @@
     			document.getElementById('cameraLabel').textContent = 'Camera: ' + e.target.value;
     			updateCameraStream();   // 👈 ADD THIS
 				logToConsole(`Switched to ${e.target.value}`, 'info');
-    			sendCommand();
+    			//sendCommand();
 			});
 			
             document.getElementById('modeSelector').addEventListener('change', (e) => {
@@ -1196,9 +1193,8 @@
                     payload: {
                         joints: {
                             base: parseInt(document.getElementById('base').value),
-                            shoulder: parseInt(document.getElementById('shoulder').value),
+                            arm: parseInt(document.getElementById('arm').value),
                             elbow: parseInt(document.getElementById('elbow').value),
-                            wrist: parseInt(document.getElementById('wrist').value),
                             gripper: parseInt(document.getElementById('gripper').value)
                         },
                         speed: speed
