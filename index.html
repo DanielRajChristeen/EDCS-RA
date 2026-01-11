@@ -632,7 +632,7 @@
                     <div class="slider-group">
                         <div class="slider-label">
                             <span>Gripper</span>
-                            <span class="slider-value" id="gripperValue">30°</span>
+                            <span class="slider-value" id="gripperValue">50%</span>
                         </div>
                         <input type="range" id="gripper" min="0" max="100" value="50"
                                aria-label="Gripper position" data-mode="manual">
@@ -719,14 +719,14 @@
             <div class="panel">
                 <div class="panel-title">Live Camera Feed</div>
                 <div class="video-container">
-    				<div class="video-label" id="cameraLabel">Camera: Arm-1</div>
-    				<img
-        				id="cameraStream"
-        				src=""
-        				style="width:100%; height:100%; object-fit:cover;"
-        				alt="Live Camera Stream"
-    				/>
-				</div>
+                    <div class="video-label" id="cameraLabel">Camera: Arm-1</div>
+                    <img
+                        id="cameraStream"
+                        src=""
+                        style="width:100%; height:100%; object-fit:cover;"
+                        alt="Live Camera Stream"
+                    />
+                </div>
             </div>
 
             <!-- Right Panel: Status & Console -->
@@ -771,10 +771,10 @@
     <script>
         // ==================== CONFIGURATION ====================
 
-		const armState = {
-  		"arm-1": { base:90, arm:90, elbow:90, gripper:30, speed:50 },
-  		"arm-2": { base:90, arm:90, elbow:90, gripper:30, speed:50 }
-		};
+        const armState = {
+            "arm-1": { base:90, arm:90, elbow:90, gripper:50, speed:50 },
+            "arm-2": { base:90, arm:90, elbow:90, gripper:50, speed:50 }
+        };
 
         
         // Stable client identity (persists across reloads)
@@ -794,28 +794,28 @@
 
         // ==================== BACKEND URL RESOLUTION ====================
 
-		// One-time Cloudflare URL entry per session
-		let BACKEND_BASE_URL = sessionStorage.getItem("backend_url");
-		
-		if (!BACKEND_BASE_URL) {
-    		BACKEND_BASE_URL = prompt(
-        		"Enter Cloudflare Tunnel URL\n(example: https://xxxx.trycloudflare.com)"
-    		);
-		
-    		if (!BACKEND_BASE_URL) {
-        		alert("Backend URL is required");
-        		throw new Error("No backend URL");
-    		}
+        // One-time Cloudflare URL entry per session
+        let BACKEND_BASE_URL = sessionStorage.getItem("backend_url");
+        
+        if (!BACKEND_BASE_URL) {
+            BACKEND_BASE_URL = prompt(
+                "Enter Cloudflare Tunnel URL\n(example: https://xxxx.trycloudflare.com)"
+            );
+        
+            if (!BACKEND_BASE_URL) {
+                alert("Backend URL is required");
+                throw new Error("No backend URL");
+            }
 
-    		BACKEND_BASE_URL = BACKEND_BASE_URL.replace(/\/$/, "");
-    		sessionStorage.setItem("backend_url", BACKEND_BASE_URL);
-		}
+            BACKEND_BASE_URL = BACKEND_BASE_URL.replace(/\/$/, "");
+            sessionStorage.setItem("backend_url", BACKEND_BASE_URL);
+        }
 
-		// WebSocket protocol auto-switch
-		const WS_PROTOCOL = BACKEND_BASE_URL.startsWith("https") ? "wss://" : "ws://";
-		const WEBSOCKET_URL =
-    		BACKEND_BASE_URL.replace(/^https?:\/\//, WS_PROTOCOL) + "/ws";
-				
+        // WebSocket protocol auto-switch
+        const WS_PROTOCOL = BACKEND_BASE_URL.startsWith("https") ? "wss://" : "ws://";
+        const WEBSOCKET_URL =
+            BACKEND_BASE_URL.replace(/^https?:\/\//, WS_PROTOCOL) + "/ws";
+                
         // ==================== STATE ====================
         let currentArm = 'arm-1';
         let currentMode = 'manual';
@@ -851,17 +851,22 @@
 
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', () => {
-    		initializeWebSocket();
-    		initializeSliders();
-    		initializeEventListeners();
-    		startHeartbeat();
-    		startConnectionMonitor();
-    		startAckMonitor();
-		
-    		updateCameraStream();   // 👈 ADD THIS
-		
-    		logToConsole('Dashboard initialized', 'info');
-		});
+            initializeWebSocket();
+            initializeSliders();
+            initializeEventListeners();
+            startHeartbeat();
+            startConnectionMonitor();
+            startAckMonitor();
+        
+            updateCameraStream();
+        
+            // Sync initial UI state to armState
+            ['base','arm','elbow','gripper','speed'].forEach(id => {
+                armState[currentArm][id] = parseInt(document.getElementById(id).value);
+            });
+        
+            logToConsole('Dashboard initialized', 'info');
+        });
 
 
         // ==================== WEBSOCKET MANAGEMENT ====================
@@ -869,66 +874,66 @@
         let isConnected = false;
 
         function initializeWebSocket() {
-    		if (!WEBSOCKET_URL) {
-        		logToConsole("No WebSocket URL configured", "error");
-        		return;
-    		}
-		
-    		logToConsole(`Connection attempt ${reconnectAttempts + 1}...`, 'info');
-    		updateConnectionStatus('reconnecting');
-			
-    		let opened = false;
-		
-    		try {
-        		websocket = new WebSocket(WEBSOCKET_URL);
-		
-        		const connectionTimeout = setTimeout(() => {
-            		if (!opened) {
-                		websocket.close();
-                		logToConsole("WebSocket connection timeout", "warning");
-        				attemptReconnect();
-            		}
-        		}, 4000);
-		
-        		websocket.onopen = () => {
-            		opened = true;
-            		clearTimeout(connectionTimeout);
-		
-        		    isConnected = true;
-            		reconnectAttempts = 0;
-            		updateConnectionStatus('online');
-		
-        		    websocket.send(JSON.stringify({
-                		type: "hello",
-                		client_id: CLIENT_ID
-            		}));
-		
-        		    logToConsole('Connected to backend', 'success');
-            		lastHeartbeatAck = Date.now();
-        		};
-		
-        		websocket.onmessage = (event) => {
-            		handleRPiMessage(JSON.parse(event.data));
-        		};
-		
-        		websocket.onerror = () => {
-    				logToConsole("WebSocket transport error", "warning");
-				};
+            if (!WEBSOCKET_URL) {
+                logToConsole("No WebSocket URL configured", "error");
+                return;
+            }
+        
+            logToConsole(`Connection attempt ${reconnectAttempts + 1}...`, 'info');
+            updateConnectionStatus('reconnecting');
+            
+            let opened = false;
+        
+            try {
+                websocket = new WebSocket(WEBSOCKET_URL);
+        
+                const connectionTimeout = setTimeout(() => {
+                    if (!opened) {
+                        websocket.close();
+                        logToConsole("WebSocket connection timeout", "warning");
+                        attemptReconnect();
+                    }
+                }, 4000);
+        
+                websocket.onopen = () => {
+                    opened = true;
+                    clearTimeout(connectionTimeout);
+        
+                    isConnected = true;
+                    reconnectAttempts = 0;
+                    updateConnectionStatus('online');
+        
+                    websocket.send(JSON.stringify({
+                        type: "hello",
+                        client_id: CLIENT_ID
+                    }));
+        
+                    logToConsole('Connected to backend', 'success');
+                    lastHeartbeatAck = Date.now();
+                };
+        
+                websocket.onmessage = (event) => {
+                    handleRPiMessage(JSON.parse(event.data));
+                };
+        
+                websocket.onerror = () => {
+                    logToConsole("WebSocket transport error", "warning");
+                };
 
-				websocket.onclose = () => {
-    				isConnected = false;
-    				updateConnectionStatus('offline');
-    				updateControlOwnership(false, null);
-    				attemptReconnect();
-				};
-		
-    			} catch (error) {
-        			logToConsole(`WebSocket init error: ${error.message}`, "error");
-    				attemptReconnect();
-    			}
-			}
-		
-        	function sendToRPi(jsonMessage) {
+                websocket.onclose = () => {
+                    isConnected = false;
+                    updateConnectionStatus('offline');
+                    updateControlOwnership(false, null);
+                    attemptReconnect();
+                };
+        
+            } catch (error) {
+                logToConsole(`WebSocket init error: ${error.message}`, "error");
+                attemptReconnect();
+            }
+        }
+        
+        function sendToRPi(jsonMessage) {
             if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) {
                 return;
             }
@@ -952,21 +957,6 @@
                 reconnectTimer = null;
                 initializeWebSocket();
             }, delay);
-        }
-
-        function simulateConnection(connected) {
-            // This function is now deprecated - using real WebSocket
-            // Keeping for backward compatibility with simulation code
-            isConnected = connected;
-            if (connected) {
-                updateConnectionStatus('online');
-                logToConsole('Connected to backend', 'success');
-                lastHeartbeatAck = Date.now();
-            } else {
-                updateConnectionStatus('offline');
-                logToConsole('Connection lost', 'error');
-                updateControlOwnership(false, null);
-            }
         }
 
         function updateConnectionStatus(status) {
@@ -1024,29 +1014,32 @@
         }
 
         // ==================== CONTROL OWNERSHIP ====================
-        updateControlOwnership(armId, hasControl, owner) {
+        function updateControlOwnership(hasControlStatus, owner) {
             hasControl = hasControlStatus;
             currentOwner = owner;
-            
+
             const ownershipEl = document.getElementById('controlOwnership');
             const ownershipText = document.getElementById('ownershipText');
-            
+
             if (hasControlStatus) {
                 ownershipEl.classList.remove('view-only');
                 ownershipEl.querySelector('.control-ownership-icon').textContent = '🔐';
                 ownershipText.textContent = 'Control Active';
+
                 if (!systemLocked) {
-                    commandsEnabled = hasControl && isConnected && !systemLocked;
-					disableControls(!commandsEnabled);
+                    commandsEnabled = isConnected;
+                    disableControls(!commandsEnabled);
                 }
             } else {
                 ownershipEl.classList.add('view-only');
                 ownershipEl.querySelector('.control-ownership-icon').textContent = '👁️';
+
                 if (owner && owner !== CLIENT_ID) {
                     ownershipText.textContent = `Controlled by: ${owner.substr(0, 8)}`;
                 } else {
                     ownershipText.textContent = 'View Only';
                 }
+
                 commandsEnabled = false;
                 disableControls(true);
             }
@@ -1067,6 +1060,14 @@
                 
                 slider.addEventListener('input', (e) => {
                     updateSliderValue(e.target);
+
+                    const id = e.target.id;
+                    const value = parseInt(e.target.value);
+
+                    // Persist per-arm UI state
+                    if (armState[currentArm] && id in armState[currentArm]) {
+                        armState[currentArm][id] = value;
+                    }
                     
                     const sliderMode = e.target.getAttribute('data-mode');
                     if (sliderMode === currentMode || sliderMode === 'both') {
@@ -1092,40 +1093,56 @@
             }
         }
 
-		// ==================== CAMERA STREAM CONFIG ====================
+        // ==================== CAMERA STREAM CONFIG ====================
 
-		function getCameraStreamURL(armId) {
-    		if (!BACKEND_BASE_URL) return "";
-		    return `${BACKEND_BASE_URL}/cam/${armId}`;
-		}
+        function getCameraStreamURL(armId) {
+            if (!BACKEND_BASE_URL) return "";
+            return `${BACKEND_BASE_URL}/cam/${armId}`;
+        }
 
-		function updateCameraStream() {
-    		const img = document.getElementById("cameraStream");
-    		if (!img || !BACKEND_BASE_URL) return;
-		
-    		const streamURL = `${BACKEND_BASE_URL}/cam/${currentArm}`;
+        function updateCameraStream() {
+            const img = document.getElementById("cameraStream");
+            if (!img || !BACKEND_BASE_URL) return;
+        
+            const streamURL = `${BACKEND_BASE_URL}/cam/${currentArm}`;
 
-    		img.onerror = () => {
-        		console.warn("Camera stream dropped, retrying...");
-        		setTimeout(() => {
-            		img.src = streamURL + "?t=" + Date.now();
-        		}, 1500);
-    		};
-	
-    		img.src = streamURL + "?t=" + Date.now();
-		}
+            img.onerror = () => {
+                console.warn("Camera stream dropped, retrying...");
+                setTimeout(() => {
+                    img.src = streamURL + "?t=" + Date.now();
+                }, 1500);
+            };
+    
+            img.src = streamURL + "?t=" + Date.now();
+        }
 
 
         // ==================== EVENT LISTENERS ====================
         function initializeEventListeners() {
             document.getElementById('armSelector').addEventListener('change', (e) => {
-    			currentArm = e.target.value;
-    			document.getElementById('cameraLabel').textContent = 'Camera: ' + e.target.value;
-    			updateCameraStream();   // 👈 ADD THIS
-				logToConsole(`Switched to ${e.target.value}`, 'info');
-    			//sendCommand();
-			});
-			
+                currentArm = e.target.value;
+                document.getElementById('cameraLabel').textContent = 'Camera: ' + currentArm;
+                updateCameraStream();
+                
+                // Restore UI state for selected arm
+                const state = armState[currentArm];
+                if (state) {
+                    document.getElementById('base').value = state.base;
+                    document.getElementById('arm').value = state.arm;
+                    document.getElementById('elbow').value = state.elbow;
+                    document.getElementById('gripper').value = state.gripper;
+                    document.getElementById('speed').value = state.speed;
+
+                    updateSliderValue(document.getElementById('base'));
+                    updateSliderValue(document.getElementById('arm'));
+                    updateSliderValue(document.getElementById('elbow'));
+                    updateSliderValue(document.getElementById('gripper'));
+                    updateSliderValue(document.getElementById('speed'));
+                }
+                
+                logToConsole(`Switched to ${currentArm}`, 'info');
+            });
+            
             document.getElementById('modeSelector').addEventListener('change', (e) => {
                 currentMode = e.target.value;
                 switchMode(currentMode);
@@ -1150,7 +1167,6 @@
             }
 
             clearErrorState();
-            sendCommand();
         }
 
         // ==================== COMMAND THROTTLING ====================
@@ -1274,10 +1290,6 @@
             document.getElementById('controlPanel').classList.add('locked-state');
         }
 
-        // ==================== SEND TO RPI ====================
-        // Note: sendToRPi is now defined in WebSocket section above
-        // Keeping this comment for code organization
-
         // ==================== ACK TRACKING ====================
         function trackPendingAck(seqId, timestamp) {
             pendingAcks.set(seqId, timestamp);
@@ -1295,7 +1307,7 @@
             }, 1000);
         }
 
-        // ==================== HEARTBEAT (LOW PRIORITY) ====================
+        // ==================== HEARTBEAT ====================
         function startHeartbeat() {
             setInterval(() => {
                 if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) return;
@@ -1536,44 +1548,6 @@
         function toggleAutoScroll() {
             autoScroll = !autoScroll;
             document.getElementById('autoScrollStatus').textContent = autoScroll ? 'ON' : 'OFF';
-        }
-
-        // ==================== SIMULATION HELPERS ====================
-        function simulateAck(sequenceId, commandType) {
-            const latencyMs = Math.floor(Math.random() * 30) + 20;
-            
-            handleRPiMessage({
-                type: 'ack',
-                arm_id: currentArm,
-                sequence_id: sequenceId,
-                status: 'ok',
-                latency_ms: latencyMs
-            });
-            
-            // Simulate occasional errors (3% chance)
-            if (Math.random() > 0.97 && commandType !== 'emergency_stop') {
-                setTimeout(() => {
-                    const errorCodes = [
-                        { code: 'HIGH_TEMP', message: 'Motor temperature above threshold', critical: false },
-                        { code: 'LOW_VOLTAGE', message: 'Power supply voltage low', critical: false },
-                        { code: 'IK_OUT_OF_RANGE', message: 'Target position unreachable', critical: true },
-                        { code: 'COLLISION_DETECTED', message: 'Obstacle detected in path', critical: true }
-                    ];
-                    const error = errorCodes[Math.floor(Math.random() * errorCodes.length)];
-                    handleRPiMessage({
-                        type: 'error',
-                        arm_id: currentArm,
-                        ...error
-                    });
-                }, 500);
-            }
-            
-            // Simulate system unlock after emergency stop
-            if (commandType === 'emergency_stop') {
-                setTimeout(() => {
-                    handleRPiMessage({ type: 'system_unlocked' });
-                }, 8000);
-            }
         }
 
         // ==================== PERIODIC STATUS UPDATES ====================
