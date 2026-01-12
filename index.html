@@ -1346,6 +1346,7 @@
                     break;
                 case 'control_granted':
                     updateControlOwnership(true, CLIENT_ID);
+                    commandsEnabled = true;
                     logToConsole('Control granted', 'success');
                     break;
                 case 'control_revoked':
