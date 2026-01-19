@@ -29,21 +29,26 @@ Each stage exists to protect determinism and physical integrity.
 
 ### **1. Power Architecture and Stability Assumptions**
 
-The firmware assumes a segregated power architecture.
+The firmware assumes a segregated power responsibility model, even when a common external power source is used.
 
-A single ESP32 cannot safely drive multiple servo motors due to current spikes and voltage sag during actuation. Powering servos directly from the ESP32 leads to brownouts, resets, and unstable PWM behavior.
+A single ESP32 cannot safely drive multiple servo motors due to current spikes and voltage sag during actuation. Powering servos directly from ESP32 GPIO or onboard regulators leads to brownouts, resets, and unstable PWM behavior.
 
-To avoid this, the system uses:
+To avoid this, the system uses a single external power system consisting of an SMPS followed by a step-down buck converter, which supplies sufficient current for all servo motors and the ESP32 Dev Kit V1 board.
 
-SMPS + step-down buck converter to power all servo motors
+Key assumptions:
 
-Independent power for the ESP32 logic
+* Servo motors are powered directly from the external SMPS + buck converter
 
-A shared ground reference between ESP32 and servo power supply
+* The ESP32 Dev Kit V1 is also powered from the same external supply (via 5V / VIN)
+
+* Servo current does not pass through the ESP32 board
+
+* A shared ground reference exists between ESP32 and servo power
 
 
-The ESP32 provides control signals only and never supplies actuator power.
+The ESP32 provides control signals only and is never used as a power source for actuators.
 
+**Important:** The buck converter must be calibrated to 5V before connecting the ESP32 or servos. Failure to do so can result in immediate ESP32 damage due to over-voltage.
 The firmware assumes these electrical conditions are satisfied before execution begins.
 
 
