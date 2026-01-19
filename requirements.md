@@ -16,13 +16,14 @@ It defines **what is required**, not how the system behaves internally.
 | Servo Motors (SG90 / MG90S or equivalent) | 4 per arm | Base, Arm, Elbow, Gripper joints |
 | SMPS (Switched Mode Power Supply) | 1 | Primary external power source |
 | Step-down Buck Converter | 1 | Regulates SMPS output to stable 5V |
-| Power Distribution Wiring | As required | Distributes 5V and GND from buck to ESP32 and servos |
 | Jumper Wires / Connectors | As required | Signal connections between ESP32 and servos |
 | USB Cable | 1 | ESP32 programming and serial debugging |
 | Multimeter (Recommended) | 1 | Voltage tuning and verification |
 | Robotic Arm Frame | 1 | Mechanical structure for servos |
 
-> **Important:** ESP32 and servo motors share a common external 5V supply (via SMPS + buck)  
+**Important:**
+
+> ESP32 and servo motors share a common external 5V supply (via SMPS + buck)  
 > with a shared ground reference. Servo current does **not** flow through the ESP32 board.
 > Always tune and verify the buck converter output to **stable 5V before connecting the ESP32 or servo motors**.  
 > Connecting an uncalibrated buck converter can permanently damage the ESP32.
