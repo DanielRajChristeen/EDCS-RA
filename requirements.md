@@ -14,6 +14,9 @@ It defines **what is required**, not how the system behaves internally.
 |----------|----------|-----------------|
 | ESP32 Dev Kit V1 | 1 per arm | Embedded actuation controller |
 | Servo Motors (SG90 / MG90S or equivalent) | 4 per arm | Base, Arm, Elbow, Gripper joints |
+| Raspberry Pi 4 Model B | 1 | Gateway, backend host, camera interface |
+| microSD Card (16GB+) | 1 | Raspberry Pi OS and backend storage |
+| Pi Camera / USB Camera | 1 | Live video stream source |
 | SMPS (Switched Mode Power Supply) | 1 | Primary external power source |
 | Step-down Buck Converter | 1 | Regulates SMPS output to stable 5V |
 | Jumper Wires / Connectors | As required | Signal connections between ESP32 and servos |
@@ -32,6 +35,8 @@ It defines **what is required**, not how the system behaves internally.
 
 ## **Software Requirements**
 
+### Embedded / Firmware
+
 | Software / Tool | Purpose |
 |-----------------|---------|
 | Arduino IDE | Firmware development and flashing |
@@ -40,7 +45,60 @@ It defines **what is required**, not how the system behaves internally.
 | ArduinoJson Library | JSON parsing for command input |
 | WiFi Library (ESP32) | Network connectivity |
 | Serial Monitor | Debug logging |
-| Web Browser / HTTP Client | Sending commands and heartbeats |
+
+---
+
+### Gateway / Backend (Raspberry Pi 4B)
+
+| Software / Library | Purpose |
+|------------------|---------|
+| Raspberry Pi OS (64-bit) | Operating system |
+| Python 3.9+ | Backend runtime |
+| FastAPI | REST & WebSocket control server |
+| Uvicorn | ASGI server for FastAPI |
+| asyncio | Asynchronous task scheduling |
+| requests | HTTP communication with ESP32 |
+| OpenCV (cv2) | Camera capture and video streaming |
+| libcamera / V4L2 | Camera interface (Pi Camera / USB) |
+| Cloudflared | Secure tunnel for external access |
+| Git | Code version control |
+| systemd (optional) | Backend service management |
+
+**Backend responsibilities include:**
+- Multi-client WebSocket control
+- Arm ownership arbitration
+- Heartbeat monitoring and watchdogs
+- Command translation and dispatch to ESP32
+- Camera stream serving
+- Tunnel exposure for remote access
+
+---
+
+### Frontend (Control Dashboard)
+
+| Technology | Purpose |
+|-----------|---------|
+| HTML5 | UI structure |
+| CSS3 | Dashboard styling |
+| JavaScript (Vanilla) | Control logic |
+| WebSocket API | Real-time control communication |
+| HTTP (MJPEG) | Live camera stream rendering |
+| Modern Web Browser | UI execution environment |
+
+---
+
+### Networking & Remote Access
+
+| Component | Purpose |
+|----------|---------|
+| Local Wi-Fi / LAN | ESP32 ↔ Raspberry Pi communication |
+| HTTP | ESP32 command & heartbeat endpoints |
+| WebSocket | Frontend ↔ backend control channel |
+| Cloudflare Tunnel | Secure public access to Raspberry Pi localhost |
+
+**Note:**
+> Cloudflare Tunnel is used to expose the Raspberry Pi backend  
+> (FastAPI + WebSocket + camera stream) without port forwarding or public IP.
 
 ---
 
