@@ -16,7 +16,6 @@ It defines **what is required**, not how the system behaves internally.
 | Servo Motors (SG90 / MG90S or equivalent) | 4 per arm | Base, Arm, Elbow, Gripper joints |
 | SMPS (Switched Mode Power Supply) | 1 | Primary power source |
 | Step-down Buck Converter | 1 | Converts SMPS output to stable 5V |
-| External 5V Power Lines | As required | Servo power distribution |
 | Common Ground Wiring | Required | Shared ground between ESP32 and servos |
 | Jumper Wires / Connectors | As required | Signal and power connections |
 | USB to Micro USB Cable | 1 | ESP32 programming and debugging |
