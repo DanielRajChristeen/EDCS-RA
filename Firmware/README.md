@@ -1,171 +1,337 @@
-# ESP32 Firmware
+# **ESP32 Firmware**
 
 **Embedded Actuation Layer — EDCS-RA**
 
----
-
-## Overview
-
-This document describes the ESP32 firmware as an **execution workflow**, not as isolated features. The firmware is part of the embedded actuation layer in EDCS-RA and is responsible for converting validated control commands into deterministic physical motion.
-
-While the ESP32 firmware contains networking, parsing, and recovery logic, these exist in support of actuation—not as system-level ownership of coordination or intent.
 
 ---
 
-## Firmware Workflow
+## **Overview**
 
-The ESP32 firmware operates as a linear, repeatable workflow. Understanding this flow is essential to understanding both the code and the architectural constraints.
+The ESP32 firmware represents the embedded actuation layer of the EDCS-RA system. Its responsibility is to convert explicit, pre-validated control commands into deterministic physical motion, while preserving electrical stability, timing predictability, and mechanical safety.
+
+Although the ESP32 platform supports networking, JSON parsing, and higher-level logic, this firmware intentionally constrains those capabilities. The embedded layer executes commands; it does not interpret intent, coordinate systems, or manage global state.
+
+This document describes the firmware in the exact order it operates, from power stability to actuation and recovery.
+
 
 ---
 
-## 1. Boot and Initialization
+## **Firmware Execution Workflow**
 
-When powered on or reset, the ESP32 initializes only the components required for stable operation: communication interfaces, servo timing, and safety defaults.
+The firmware follows a linear, repeatable execution model:
 
-Servo timing is configured explicitly at startup to ensure predictable PWM behavior across resets.
+power stability → boot → pin binding → network enablement → wait → receive → parse → validate → enforce safety scope → actuate → recover
+
+Each stage exists to protect determinism and physical integrity.
+
+
+---
+
+### **1. Power Architecture and Stability Assumptions**
+
+The firmware assumes a segregated power architecture.
+
+A single ESP32 cannot safely drive multiple servo motors due to current spikes and voltage sag during actuation. Powering servos directly from the ESP32 leads to brownouts, resets, and unstable PWM behavior.
+
+To avoid this, the system uses:
+
+SMPS + step-down buck converter to power all servo motors
+
+Independent power for the ESP32 logic
+
+A shared ground reference between ESP32 and servo power supply
+
+
+The ESP32 provides control signals only and never supplies actuator power.
+
+The firmware assumes these electrical conditions are satisfied before execution begins.
+
+
+---
+
+### **2. Boot and Initialization**
+
+On power-up or reset, the ESP32 initializes only what is required for stable operation.
+
+* All servos are detached at boot
+
+* No actuation commands are issued
+
+* No default positioning is applied
+
+
+This guarantees no unintended motion during startup.
+Servo movement begins only after the first valid command is received.
+
+
+---
+
+### **3. Hardware Binding and Pin Ownership**
+
+Each firmware instance statically binds GPIO pins to physical joints at compile time. These bindings do not change at runtime.
+
+Joint-to-Pin Mapping
+
+Base joint → GPIO 5
+
+Arm joint → GPIO 18
+
+Elbow joint → GPIO 19
+
+Gripper → GPIO 21
 
 ```cpp
-servo.setPeriodHertz(50);
-servo.attach(SERVO_PIN, 500, 2400);
+#define BASE_PIN   5
+#define ARM_PIN    18
+#define ELBOW_PIN  19
+#define GRIP_PIN   21
 ```
 
-No dynamic configuration or runtime discovery is performed during boot. This guarantees that actuation behavior is known before any command is accepted.
+Each pin is exclusively owned by one joint. No multiplexing, reassignment, or dynamic role switching occurs.
+
 
 ---
 
-## 2. Network Bring-Up (Transport Enablement)
+### **4. Network Bring-Up (Transport Enablement)**
 
-The firmware includes Wi-Fi logic to enable command transport during development and constrained deployments. Network connectivity is established early to allow upstream systems to reach the actuator node.
+The firmware includes Wi-Fi connectivity to enable command transport.
 
-Critically, Wi-Fi is treated as a **transport mechanism only**. Network state does not alter control logic, execution timing, or servo behavior. If connectivity is lost, the firmware simply stops receiving commands; it does not enter alternative modes or make assumptions about system health.
+Networking is treated strictly as a transport mechanism. Network state does not influence:
+
+* Actuation timing
+
+* Control logic
+
+* Safety enforcement
+
+* Servo behavior
+
+Loss of connectivity results only in the absence of new commands. The firmware does not infer system failure or enter fallback modes.
 
 Architectural ownership of networking remains outside the embedded layer.
 
----
-
-## 3. Idle and Wait State
-
-After initialization, the firmware enters a passive wait state. No autonomous behavior is executed. The ESP32 does not generate motion, schedules, or background tasks.
-
-This idle state reflects the core ideology of the embedded layer: **react, do not decide**.
 
 ---
 
-## 4. Command Reception
+### **5. Idle and Wait State**
 
-Commands arrive via the configured communication channel. The firmware does not assume where the command originates—gateway, local client, or test interface.
+After initialization, the firmware enters a passive wait state.
 
-The arrival of data is the only trigger for action.
+The ESP32 does not:
 
-```cpp
-if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-}
-```
+* Generate motion autonomously
 
-There is no polling for state changes, no time-based logic, and no predictive execution.
+* Schedule behaviors
+
+* Predict future states
+
+
+The embedded layer exists to react, not decide.
+
 
 ---
 
-## 5. Input Normalization and JSON Parsing
+### **6. Command Reception**
 
-Incoming data may be structured (e.g., JSON) depending on the integration stage. The firmware includes lightweight JSON parsing to extract primitive actuation parameters.
+Commands are received through HTTP endpoints exposed by the embedded web server.
 
-This parsing is intentionally shallow. It exists only to normalize input into values that the actuator can consume.
+Arrival of input is the only execution trigger. There is no polling, timing-based execution, or background motion logic.
 
-The firmware does **not**:
 
-* Interpret intent
-* Validate workflows
-* Perform semantic checks
+---
+
+### **7. Input Normalization and JSON Parsing**
+
+The firmware uses lightweight JSON parsing to normalize incoming payloads into primitive actuation parameters.
+
+Parsing is intentionally shallow and bounded. It exists only to extract explicit values. The firmware does not interpret intent, validate workflows, or apply semantic meaning to structured data.
 
 JSON is treated as an ingress format, not a control model.
 
+
 ---
 
-## 6. Local Validation
+### **8. Arm Joint Safety Scope**
 
-Before any actuation occurs, the firmware enforces minimal local safety constraints. These checks exist solely to protect hardware and actuators.
+Before any actuation occurs, the firmware enforces an explicit Arm Joint Safety Scope.
+
+This scope defines the mechanically safe motion envelope for each joint. It represents the absolute boundary within which the embedded layer is allowed to operate. Any command outside this scope is rejected locally, regardless of command source or system state.
+
+The purpose of this scope is to ensure that no software behavior can physically damage the arm, even in the presence of upstream errors, network faults, or integration bugs.
+
+
+---
+
+### **Safety Scope Derivation**
+
+The Arm Joint Safety Scope is established through isolated servo characterization and mechanical testing, performed outside the EDCS-RA distributed control stack.
+
+Servos are tested individually using a minimal UART-to-servo control firmware to identify:
+
+* Mechanical end stops
+
+* Over-travel regions
+
+* Dead zones
+
+* Joint-specific mounting constraints
+
+
+The calibration workflow used to derive these limits is documented here:
+
+**🔗 ESP32 UART to Servo Control — Safety Calibration Reference**
+https://github.com/DanielRajChristeen/ESP32-UART-to-Servo
+
+This calibration is treated as a pre-integration activity, not a runtime responsibility.
+
+
+---
+
+### **Encoding Safety Scope in Firmware**
+
+Once validated, safety boundaries are encoded as compile-time constants.
+
+Example (ARM-1):
 
 ```cpp
-if (angle < 0 || angle > 180) {
-    return;
-}
+/* ================= ARM-1 SAFETY SCOPE ================= */
+#define BASE_MIN   0
+#define BASE_MAX   180
+
+#define ARM_MIN    0
+#define ARM_MAX    140
+
+#define ELBOW_MIN  60
+#define ELBOW_MAX  140
+
+#define GRIP_MIN   20
+#define GRIP_MAX   40
 ```
 
-Validation is limited to range and format correctness. System-level validation and sequencing are assumed to be handled upstream.
+These values are not tuning parameters. They represent validated mechanical truths.
+
+Changing them requires re-calibration and firmware redeployment.
+
 
 ---
 
-## 7. Actuation Execution
+### **9. Local Validation**
 
-Once validated, the command is applied immediately. The firmware translates the command into a physical signal without delay, buffering, or reinterpretation.
+Incoming commands are validated against format, range, and the Arm Joint Safety Scope before execution.
 
-```cpp
-servo.write(angle);
-```
+Unsafe commands are rejected explicitly. Values are not clamped, interpolated, or auto-corrected.
 
-There is no retained command history and no awareness of previous or future states. Each command is treated as complete and independent.
+Rejection is observable through the absence of physical motion.
 
----
-
-## 8. Stateless Operation
-
-After execution, the firmware returns to the idle wait state. No state is stored beyond the physical position of the actuator itself.
-
-This stateless model ensures that:
-
-* Firmware restarts are safe
-* Partial failures do not corrupt behavior
-* Debugging remains straightforward
 
 ---
 
-## 9. Watchdog and Local Recovery
+### **10. Actuation Execution**
 
-A watchdog mechanism is present to guarantee firmware liveness. Its scope is strictly local.
+Once validated, commands are applied immediately.
 
-If the firmware becomes unresponsive, the watchdog triggers a reset of the ESP32 itself. This mechanism does not coordinate recovery with other system components and does not attempt to infer system-wide failure.
+The firmware translates control values directly into PWM signals on the bound GPIO pins. Motion is executed incrementally to maintain smooth and predictable movement.
 
-System supervision and orchestration are explicitly delegated to higher layers.
+Each command is treated as complete and independent.
 
----
-
-## 10. Multi-Arm Scaling via Replication
-
-Each firmware file (`arm_1.ino`, `arm_2.ino`) corresponds to a single physical arm. There is no multi-arm awareness within a single firmware instance.
-
-Scaling the system involves deploying additional ESP32 nodes running equivalent firmware, not increasing complexity within the firmware itself. This preserves determinism as the system grows.
 
 ---
 
-## What This Firmware Explicitly Avoids
+### **11. Command Rate Assumptions**
 
-Throughout the workflow, the firmware deliberately avoids responsibilities that compromise clarity or timing:
+The firmware does not implement command buffering, queuing, or scheduling.
 
-* System-level decision-making
+If commands arrive faster than the physical actuation capability of the servos, newer commands overwrite previous targets. Rate control and sequencing are the responsibility of upstream layers.
+
+
+---
+
+### **12. Stateless Operation**
+
+After execution, the firmware returns to the idle wait state.
+
+No command history is stored. The only persistent state is the physical position of the actuator itself.
+
+This guarantees:
+
+* Safe restarts
+
+* Predictable recovery
+
+* No hidden state coupling
+
+
+
+---
+
+### **13. Watchdog and Local Recovery**
+
+A watchdog mechanism guarantees firmware liveness.
+
+If no valid command or heartbeat is received within the configured timeout, the firmware:
+
+* Detaches all servos
+
+* Resets session state
+
+
+The watchdog scope is strictly local. It does not supervise other system components or infer system-level health.
+
+
+---
+
+### **14. Multi-Arm Scaling via Replication**
+
+Each firmware file (arm_1.ino, arm_2.ino) corresponds to one physical arm.
+
+There is no multi-arm awareness within a single firmware instance. Scaling is achieved by deploying additional ESP32 nodes, not by increasing firmware complexity.
+
+
+---
+
+## **What This Firmware Explicitly Avoids**
+
+The firmware intentionally avoids responsibilities that compromise clarity or timing:
+
+* System-level decision making
+
 * Multi-arm coordination
+
 * UI awareness
+
 * Network orchestration
-* Motion planning
 
-These concerns belong to the gateway and frontend layers.
+* Motion planning or trajectory generation
 
----
 
-## Relationship to Other Layers
+These concerns belong to higher layers.
 
-The ESP32 firmware assumes that command semantics and coordination logic are defined upstream. Detailed descriptions of command structure, sequencing, and recovery logic are documented in the gateway documentation.
-
-System-wide data flow and architectural contracts are described in the architecture documentation.
 
 ---
 
-## Closing Perspective
+## **Relationship to Other Layers**
 
-The ESP32 firmware in EDCS-RA is designed to be predictable, constrained, and reliable. Its success is measured not by feature richness, but by consistency of execution.
+The ESP32 firmware operates under explicit contracts defined upstream. Command semantics, coordination logic, and system supervision are documented in the gateway layer.
 
-In this system, **a boring firmware is a correct firmware**.
+End-to-end architecture is described in docs/architecture.md.
+
+
+---
+
+## **Closing Perspective**
+
+The ESP32 firmware in EDCS-RA is intentionally constrained, predictable, and stable. Its value lies not in intelligence, but in reliable execution under load.
+
+That reliability exists because:
+
+Power is handled externally
+
+Safety boundaries are declared and enforced locally
+
+Complexity is pushed upward
+
+
+In EDCS-RA, good power architecture enables boring firmware — and boring firmware is correct firmware.
+
 
 ---
