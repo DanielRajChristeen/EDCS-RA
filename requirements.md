@@ -109,8 +109,6 @@ package must be installed in Arduino IDE.
 
 ### **Board Package URL (Reference)**
 
-https://dl.espressif.com/dl/package_esp32_index.json
-
 ### **Installation Steps**
 
 1. Open **Arduino IDE**
@@ -151,7 +149,7 @@ It does **not** include:
 - System architecture details
 
 Refer to:
-- `firmware/README.md` — embedded firmware behavior & safety
+- `Firmware/README.md` — embedded firmware behavior & safety
 - `architecture.md` — system-level design
 
 ---
