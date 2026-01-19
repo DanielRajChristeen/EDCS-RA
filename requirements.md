@@ -19,7 +19,7 @@ It defines **what is required**, not how the system behaves internally.
 | External 5V Power Lines | As required | Servo power distribution |
 | Common Ground Wiring | Required | Shared ground between ESP32 and servos |
 | Jumper Wires / Connectors | As required | Signal and power connections |
-| USB Cable | 1 | ESP32 programming and debugging |
+| USB to Micro USB Cable | 1 | ESP32 programming and debugging |
 | Multimeter (Recommended) | 1 | Voltage verification |
 | Robotic Arm Frame | 1 | Mechanical structure for servos |
 
