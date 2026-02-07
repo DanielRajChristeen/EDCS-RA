@@ -1,6 +1,6 @@
-#Cloudflare Tunnel in EDCS-RA
+# **Cloudflare Tunnel in EDCS-RA**
 
-##Overview
+## **Overview**
 
 In the EDCS-RA architecture, Cloudflare Tunnel is used as the exclusive remote connectivity mechanism between external user interfaces and the edge gateway. Its purpose is narrowly scoped: to provide secure, inbound-free access to the Raspberry Pi gateway without exposing any part of the robotic system to the public network.
 
@@ -9,7 +9,7 @@ The tunnel enables remote intent delivery while preserving EDCS-RA’s core prin
 
 ---
 
-##Architectural Rationale
+## **Architectural Rationale**
 
 EDCS-RA is designed to operate in constrained and heterogeneous network environments where public IP addresses, static routing, or manual port forwarding cannot be assumed. At the same time, the system requires reliable remote access to the gateway for control and coordination.
 
@@ -20,7 +20,7 @@ Within EDCS-RA, no alternative tunneling, VPN, or reverse-proxy mechanism is use
 
 ---
 
-##Position Within the System
+## **Position Within the System**
 
 The Cloudflare Tunnel is positioned strictly at the gateway boundary. All remote traffic enters the system through the tunnel and terminates at the Raspberry Pi gateway. No tunnel endpoints exist at the ESP32 layer or on any physical actuation hardware.
 
@@ -31,7 +31,7 @@ This placement reinforces the gateway’s role as the sole network authority wit
 
 ---
 
-##Gateway Responsibilities
+## **Gateway Responsibilities**
 
 The Raspberry Pi gateway is responsible for initiating, maintaining, and terminating the Cloudflare Tunnel connection. The tunnel client runs within the gateway’s operational environment and is managed as part of the gateway lifecycle.
 
@@ -40,7 +40,7 @@ All traffic received through the tunnel is processed at the gateway layer. The g
 
 ---
 
-##Security Model
+## **Security Model**
 
 EDCS-RA relies on Cloudflare Tunnel to enforce a strictly outbound-only connectivity model. No inbound ports are opened on the gateway, and no device within the robotic system is directly exposed to the internet.
 
@@ -51,13 +51,14 @@ All safety-critical decisions remain local to the gateway and embedded firmware.
 
 ---
 
-##Tunnel Initialization and Execution
+## **Tunnel Initialization and Execution**
 
 In EDCS-RA, the Cloudflare Tunnel is started on the gateway using a token-based, ephemeral tunnel configuration. This approach avoids persistent credentials, interactive login flows, or long-lived configuration files on the device.
 
 The tunnel is initiated using a randomly generated, Cloudflare-issued tunnel token and is executed directly on the gateway.
 
 The command used in this project is:
+
 ```bash
 cloudflared tunnel run --token <TUNNEL_TOKEN>
 ```
@@ -69,7 +70,7 @@ This command establishes an outbound connection from the gateway to the Cloudfla
 
 ---
 
-##Operational Characteristics
+## **Operational Characteristics**
 
 The tunnel process runs under the gateway’s control and is tied to the gateway’s operational lifecycle.
 
@@ -78,7 +79,7 @@ If the tunnel process terminates, remote access to the gateway immediately stops
 
 ---
 
-##Failure Behavior
+## **Failure Behavior**
 
 If the Cloudflare Tunnel becomes unavailable, remote access to the gateway is lost while local gateway and ESP32 operation continue unaffected. No unsafe behavior is triggered at the device level.
 
@@ -89,7 +90,7 @@ Loss of internet connectivity results in graceful degradation to local-only oper
 
 ---
 
-##Scope and Non-Goals
+## **Scope and Non-Goals**
 
 Cloudflare Tunnel is not used for real-time motor control, device-level authentication, or safety enforcement. It does not participate in low-latency control loops and does not replace local arbitration logic.
 
@@ -98,7 +99,7 @@ Its role within EDCS-RA is intentionally limited to secure remote access to the 
 
 ---
 
-##Status
+## **Status**
 
 This document describes the current and only tunnel mechanism used in EDCS-RA.
 
