@@ -1,6 +1,6 @@
 # **Communication Protocol — EDCS-RA**
 
-## **Purpose""
+## **Purpose**
 
 This document defines the communication protocol used within EDCS-RA. It specifies how control intent, state information, and execution feedback flow between system components. The protocol is designed to support distributed control, fault isolation, and safety-first operation, rather than low-latency teleoperation.
 
