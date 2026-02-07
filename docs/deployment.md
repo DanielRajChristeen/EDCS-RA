@@ -85,7 +85,9 @@ This order prevents remote commands from reaching an uninitialized system.
 The gateway application is started locally on the Raspberry Pi.
 A typical execution pattern is:
 
+```bash
 uvicorn app:app --host 0.0.0.0 --port 8080
+```
 
 The gateway listens only on the local network interface. It is not exposed directly to the internet.
 
@@ -96,7 +98,9 @@ The gateway listens only on the local network interface. It is not exposed direc
 
 Once the gateway service is running, remote access is enabled using Cloudflare quick tunnel mode:
 
+```bash
 cloudflared tunnel --url http://localhost:8080
+```
 
 This command:
 
