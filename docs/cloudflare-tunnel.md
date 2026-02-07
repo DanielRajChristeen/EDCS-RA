@@ -96,7 +96,7 @@ This model is sufficient for demonstrating, testing, and iterating on the system
 
 ---
 
-Command Used in This Project
+## **Command Used in This Project**
 
 The gateway starts the tunnel using:
 
