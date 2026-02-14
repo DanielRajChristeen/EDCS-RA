@@ -1,5 +1,7 @@
 # EDCS-RA
 
+<img src = "assets/edcs-ra.jpeg">
+
 **Edge-Assisted Distributed Control System for Robotic Arms**
 
 ---
