@@ -2,9 +2,13 @@
 
 **End-to-End Design and Control Ideology — EDCS-RA**
 
+<img src = "https://github.com/DanielRajChristeen/EDCS-RA/blob/02e33c3b10343598b6ef642b8b55c4d5c0cb2dc6/assets/architecture.jpeg">
+
 ---
 
 ## 1. Architectural Objective
+
+
 
 EDCS-RA (Edge-Assisted Distributed Control System for Robotic Arms) is engineered to enable **remote, multi-user, multi-arm robotic control** without compromising safety, determinism, or fault isolation.
 
